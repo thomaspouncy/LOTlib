@@ -19,5 +19,8 @@ from MixtureProposer import MixtureProposer
 from RegenerationProposer import RegenerationProposer
 regeneration_proposal = RegenerationProposer().proposal_content
 
+from NumpyRegenerationProposer import NumpyRegenerationProposer
+np_regeneration_proposal = NumpyRegenerationProposer().proposal_content
+
 from InsertDeleteRegenerationProposer import InsertDeleteRegenerationProposer
 IDR_proposal = InsertDeleteRegenerationProposer().proposal_content

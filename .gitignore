@@ -48,3 +48,6 @@ doc/_build
 **/.idea/*
 **/idea/*
 *.idea
+
+*.log
+*.txt

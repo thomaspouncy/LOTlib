@@ -11,14 +11,14 @@ from LOTlib.Miscellaneous import *
 from LOTlib.GrammarRule import GrammarRule, BVAddGrammarRule
 from LOTlib.BVRuleContextManager import BVRuleContextManager
 from LOTlib.FunctionNode import FunctionNode, BVAddFunctionNode
-
+from LOTlib.NumpyGrammarMixin import NumpyGrammarMixin
 
 # when we pack, we are allowed to use these characters, in this order
 import string
 pack_string = '0123456789'+string.ascii_lowercase+string.ascii_uppercase
 
 
-class Grammar(CommonEqualityMixin):
+class Grammar(CommonEqualityMixin, NumpyGrammarMixin):
     """
     A PCFG-ish class that can handle rules that introduce bound variables
     """
@@ -170,50 +170,54 @@ class Grammar(CommonEqualityMixin):
             assert self.start in self.nonterminals(), \
                 "The default start symbol %s is not a defined nonterminal" % self.start
 
-        # Dispatch different kinds of generation
-        if isinstance(x,list):            
-            return map(lambda xi: self.generate(x=xi), x)             # If we get a list, just map along it to generate.
-        elif self.is_nonterminal(x):
+        try:
+            # Dispatch different kinds of generation
+            if isinstance(x,list):
+                return map(lambda xi: self.generate(x=xi), x)             # If we get a list, just map along it to generate.
+            elif self.is_nonterminal(x):
 
-            # sample a grammar rule
-            rules = self.get_rules(x)
-            assert len(rules) > 0, "*** No rules in x=%s"%x
+                # sample a grammar rule
+                rules = self.get_rules(x)
+                assert len(rules) > 0, "*** No rules in x=%s"%x
 
-            # sample the rule
-            r = weighted_sample(rules, probs=lambda x: x.p, log=False)
+                # sample the rule
+                r = weighted_sample(rules, probs=lambda x: x.p, log=False)
 
-            # Make a stub for this functionNode 
-            fn = r.make_FunctionNodeStub(self, None)
+                # Make a stub for this functionNode
+                fn = r.make_FunctionNodeStub(self, None)
 
-            # Define a new context that is the grammar with the rule added
-            # Then, when we exit, it's still right.
-            with BVRuleContextManager(self, fn, recurse_up=False):      # not sure why we can't use with/as:
-                # Can't recurse on None or else we genreate from self.start
-                if fn.args is not None:
-                    # and generate below *in* this context (e.g. with the new rules added)
-                    try:
-                        fn.args = self.generate(fn.args)
-                    except RuntimeError as e:
-                        print "*** Runtime error in %s" % fn
-                        raise e
+                # Define a new context that is the grammar with the rule added
+                # Then, when we exit, it's still right.
+                with BVRuleContextManager(self, fn, recurse_up=False):      # not sure why we can't use with/as:
+                    # Can't recurse on None or else we genreate from self.start
+                    if fn.args is not None:
+                        # and generate below *in* this context (e.g. with the new rules added)
+                        try:
+                            fn.args = self.generate(fn.args)
+                        except RuntimeError as e:
+                            print "*** Runtime error in %s" % fn
+                            raise e
 
-                # and set the parents
-                for a in fn.argFunctionNodes():
-                    a.parent = fn
+                    # and set the parents
+                    for a in fn.argFunctionNodes():
+                        a.parent = fn
 
-            return fn
-        elif isinstance(x, FunctionNode): # this will let us finish generation of a partial tree
+                return fn
+            elif isinstance(x, FunctionNode): # this will let us finish generation of a partial tree
 
-            x.args = [ self.generate(a) for a in x.args]
+                x.args = [ self.generate(a) for a in x.args]
 
-            for a in x.argFunctionNodes():
-                a.parent = x
+                for a in x.argFunctionNodes():
+                    a.parent = x
 
-            return x
+                return x
 
-        else:  # must be a terminal
-            assert isinstance(x, str), ("*** Terminal must be a string! x="+x)
-            return x
+            else:  # must be a terminal
+                assert isinstance(x, str), ("*** Terminal must be a string! x="+x)
+                return x
+        except AssertionError as e:
+            print "***Assertion error in %s" % x
+            raise e
 
     def enumerate(self, d=20, nt=None, leaves=True):
         """Enumerate all trees up to depth n.
